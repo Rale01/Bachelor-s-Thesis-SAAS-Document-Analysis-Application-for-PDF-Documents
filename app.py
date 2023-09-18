@@ -7,8 +7,11 @@ from langchain.vectorstores import FAISS
 
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from htmlTemplates import css, bot_template, user_template
+from htmlTemplates import  bot_template, user_template
 from langchain.llms import HuggingFaceHub
+
+
+
 
 def get_pdf_text(pdf_docs):
     text = ""
@@ -32,14 +35,14 @@ def get_text_chunks(text):
 
 def get_vectorstore(text_chunks):
     #embeddings = OpenAIEmbeddings()
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = HuggingFaceInstructEmbeddings(model_name="intfloat/e5-large-v2")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
 
 def get_conversation_chain(vectorstore):
     #llm = ChatOpenAI()
-    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
+    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":1000})
 
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
@@ -54,7 +57,6 @@ def get_conversation_chain(vectorstore):
 def handle_userinput(user_question):
     response = st.session_state.conversation({'question': user_question})
     st.session_state.chat_history = response['chat_history']
-
     for i, message in enumerate(st.session_state.chat_history):
         if i % 2 == 0:
             st.write(user_template.replace(
@@ -64,28 +66,82 @@ def handle_userinput(user_question):
                 "{{MSG}}", message.content), unsafe_allow_html=True)
 
 
+
+header_html = '<span style="font-size: 40px; font-weight: bold; color:white;">Welcome to PDFInqusitor</span> <img src="https://i.ibb.co/4mKV5jQ/PDFInquisitor-logo.png" alt="Custom Icon" style="vertical-align:middle" width="135" height="100">'
+question_html = '<p style="font-size: 14px; font-weight: bold; color:white; margin-bottom: -450px;">Ask a question related the content of the PDFs you have provided: </p>'
+instruction_html = '<p style="font-size: 15px; font-weight: bold; color:white; margin-bottom: -450px;"> Upload your PDFs here and click on &apos;Process&apos; </p>'
+
+html_sider = '<span style="font-size: 23px; font-weight: bold; color: white">Your PDF documents</span> <img src="https://i.ibb.co/LpqGMR5/features-3-Photo-Room-png-Photo-Room.png" alt="Custom Icon" style="vertical-align:middle" width="90" height="60">'
+
+page_bg_img = """
+<style>
+[data-testid = "stAppViewContainer"]{
+background-image:url("https://wallpapers.com/images/hd/3d-red-and-black-polygon-w0xm5hsgnjeajcnr.webp");
+background-size:cover;
+}
+
+[data-testid = "stHeader"]{
+background-color: rgba(0, 0, 0, 0);
+}
+
+[data-testid = "stToolbar"]{
+right: 2rem;
+}
+
+[data-testid = "stSidebar"]{
+background-image:url("https://e0.pxfuel.com/wallpapers/590/133/desktop-wallpaper-futuristic-black-720x1440-thumbnail.jpg");
+background-size:cover;
+}
+
+[data-testid = "baseButton-header"]{
+color:white;
+}
+
+[data-testid = "baseButton-headerNoPadding"]{
+color:white;
+}
+
+[data-testid = "stMarkdownContainer"]{
+color:#DFDFDE;
+}
+
+[data-testid="baseButton-secondary"]:hover {
+    color: white;
+}
+
+.css-145e98g{
+color: #931818;
+}
+</style>
+"""
+
+
 def main():
     load_dotenv()
-    st.set_page_config(page_title="Chat with multiple PDFs",
-                       page_icon=":books:")
-    st.write(css, unsafe_allow_html=True)
-
+    st.set_page_config(page_title="PDFInqusitor",
+                       page_icon="images/PDF Analyzer logo.png")
+    st.markdown(page_bg_img, unsafe_allow_html=True)
+    
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
-    st.header("Chat with multiple PDFs :books:")
-    user_question = st.text_input("Ask a question about your documents:")
+    st.markdown(header_html, unsafe_allow_html=True)
+    st.markdown(question_html, unsafe_allow_html=True)
+    user_question = st.text_input("")
     if user_question:
         handle_userinput(user_question)
 
     with st.sidebar:
-        st.subheader("Your documents")
+        st.markdown(html_sider, unsafe_allow_html=True)
+        st.markdown(instruction_html, unsafe_allow_html=True)
         pdf_docs = st.file_uploader(
-            "Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
-        if st.button("Process"):
-            with st.spinner("Processing"):
+            "", accept_multiple_files=True)
+ 
+        
+        if st.button("Process⚙️"):
+            with st.spinner("Processing..."):
                 # get pdf text
                 raw_text = get_pdf_text(pdf_docs)
 
