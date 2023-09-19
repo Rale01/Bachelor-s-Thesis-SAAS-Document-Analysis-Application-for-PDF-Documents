@@ -16,8 +16,15 @@ from firebase_admin import auth
 import time
 
 import json
-from streamlit_lottie import st_lottie
+import requests
+import streamlit.runtime.legacy_caching
 
+def load_lottiefile(filepath: str):
+    with open(filepath, "r") as f:
+        return json.load(f)
+
+
+lottie_loading_animation = load_lottiefile("animation1.json")
 
 
 def initialize_firebase():
@@ -34,7 +41,7 @@ def login(email):
         user = auth.get_user_by_email(email)
         success_message = st.empty()
         success_message = st.success('Login successful!', icon="✅")
-        st.balloons()
+        
 
         # Set a session state variable to indicate the user is logged in
         st.session_state.is_logged_in = True
@@ -46,9 +53,26 @@ def login(email):
             user_gender = user_data.get("gender")
             st.session_state.user_gender = user_gender 
 
+        with st.spinner("Logging In..."):
+            st.markdown(
+                f"""
+                <style>
+                    .stSpinner div {{
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100%;
+                        width: 100%;
+                    }}
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            # Display the Lottie animation
+            st.lottie(lottie_loading_animation, width=500, height=500)
         time.sleep(3)  # Adjust the sleep duration as needed
         success_message.empty()
-        return email
+        
 
     except Exception as e:
         st.warning(f"Login failed: {e}")
@@ -209,6 +233,16 @@ color: #931818;
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
+iframe {
+  margin: 0;
+  padding: 0;
+  visibility: hidden;
+  display:none;
+}
+
+.st-b3 st-b8 st-d8 st-b1 st-bq st-ae st-af st-ag st-ah st-ai st-aj st-br st-bw{
+ display:none;
+}
 </style>
 """
 
@@ -226,6 +260,7 @@ a_underline = """
 """
 
 
+
 def main():
         email = None
         if "is_logged_in" not in st.session_state:
@@ -238,7 +273,6 @@ def main():
         if not st.session_state.is_logged_in:
                 email = loginAndSignUp()
         else:
-
                 load_dotenv()
                 st.set_page_config(page_title="PDFInqusitor",
                                 page_icon="images/PDF Analyzer logo.png")
@@ -282,6 +316,7 @@ def main():
                             st.session_state.user_gender = None
 
                             # Refresh the page
+                            streamlit.runtime.legacy_caching.clear_cache()
                             st.experimental_rerun()
 
                     st.markdown(html_sider, unsafe_allow_html=True)
