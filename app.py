@@ -7,10 +7,90 @@ from langchain.vectorstores import FAISS
 
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from htmlTemplates import  bot_template, user_template
+from htmlTemplates import  bot_template, man_template, woman_template, anonymous_template
 from langchain.llms import HuggingFaceHub
 
+import firebase_admin
+from firebase_admin import credentials, firestore
+from firebase_admin import auth
+import time
 
+import json
+from streamlit_lottie import st_lottie
+
+
+
+def initialize_firebase():
+    if not firebase_admin._apps:
+        cred = credentials.Certificate('pdfinquistor-c1e1fe10ba47.json')
+        firebase_admin.initialize_app(cred)
+
+initialize_firebase()
+
+db = firestore.client()
+
+def login(email):
+    try:
+        user = auth.get_user_by_email(email)
+        success_message = st.empty()
+        success_message = st.success('Login successful!', icon="✅")
+        st.balloons()
+
+        # Set a session state variable to indicate the user is logged in
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = email
+
+        user_ref = db.collection("payment_plans").document(user.uid)
+        user_data = user_ref.get().to_dict()
+        if user_data:
+            user_gender = user_data.get("gender")
+            st.session_state.user_gender = user_gender 
+
+        time.sleep(3)  # Adjust the sleep duration as needed
+        success_message.empty()
+        return email
+
+    except Exception as e:
+        st.warning(f"Login failed: {e}")
+
+
+header_html = '<span style="font-size: 40px; font-weight: bold; color:white;">Login into PDFInqusitor</span> <img src="https://i.ibb.co/4mKV5jQ/PDFInquisitor-logo.png" alt="Custom Icon" style="vertical-align:middle" width="135" height="100">'
+
+
+def loginAndSignUp():
+    st.set_page_config(page_title="PDFInqusitor",
+                                page_icon="images/PDF Analyzer logo.png")
+    st.markdown(header_html, unsafe_allow_html=True)
+
+    choice = st.selectbox('Login/Signup', ['Login', "Sign Up"])
+    if choice == 'Login':
+        st.markdown(page_bg_img, unsafe_allow_html=True)
+        email = st.text_input('Email Address')
+        password = st.text_input('Password', type = 'password')
+
+        st.button('Login', on_click=lambda:login(email))
+
+    else:
+        st.markdown(page_bg_img, unsafe_allow_html=True)
+        email = st.text_input('Email Address')
+        password = st.text_input('Password', type = 'password')
+        payment_plan = st.selectbox('Payment plan: ', ['20$ one month🔥', '50$ six months💣', '100$ a year💯'])
+        gender = st.radio("Select your gender", ["Male ♂️ ", "Female ♀️ ", "Other ⚧️ "])
+
+        if st.button('Create my account'):
+            user = auth.create_user(email = email , password = password)
+            
+            payment_plan_data = {
+            "email": email,
+            "payment_plan": payment_plan,
+            "gender": gender
+            }
+            db.collection("payment_plans").document(user.uid).set(payment_plan_data)
+        
+
+            st.success("Account created successfully!")
+            st.markdown("Please Login using your email and password")
+            st.balloons()
 
 
 def get_pdf_text(pdf_docs):
@@ -59,8 +139,15 @@ def handle_userinput(user_question):
     st.session_state.chat_history = response['chat_history']
     for i, message in enumerate(st.session_state.chat_history):
         if i % 2 == 0:
-            st.write(user_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
+            if st.session_state.user_gender == "Male ♂️ ":
+                st.write(man_template.replace(
+                    "{{MSG}}", message.content), unsafe_allow_html=True)
+            elif st.session_state.user_gender == "Female ♀️ ":
+                 st.write(woman_template.replace(
+                    "{{MSG}}", message.content), unsafe_allow_html=True)
+            else:
+                 st.write(anonymous_template.replace(
+                    "{{MSG}}", message.content), unsafe_allow_html=True)
         else:
             st.write(bot_template.replace(
                 "{{MSG}}", message.content), unsafe_allow_html=True)
@@ -112,48 +199,112 @@ color:#DFDFDE;
 .css-145e98g{
 color: #931818;
 }
+
+[data-testid="stRadio"]{
+    background-color: rgb(16, 12, 8);
+    border-radius: 20px;
+    padding: 10px;
+}
+
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+
+</style>
+"""
+
+a_underline = """
+<style>
+    .css-oyvdv1 a{
+        color: white;
+    }
+    a {
+    color: white;
+    text-decoration: none;
+
+    }
 </style>
 """
 
 
 def main():
-    load_dotenv()
-    st.set_page_config(page_title="PDFInqusitor",
-                       page_icon="images/PDF Analyzer logo.png")
-    st.markdown(page_bg_img, unsafe_allow_html=True)
-    
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = None
-
-    st.markdown(header_html, unsafe_allow_html=True)
-    st.markdown(question_html, unsafe_allow_html=True)
-    user_question = st.text_input("")
-    if user_question:
-        handle_userinput(user_question)
-
-    with st.sidebar:
-        st.markdown(html_sider, unsafe_allow_html=True)
-        st.markdown(instruction_html, unsafe_allow_html=True)
-        pdf_docs = st.file_uploader(
-            "", accept_multiple_files=True)
- 
+        email = None
+        if "is_logged_in" not in st.session_state:
+                st.session_state.is_logged_in = False
+        if "user_email" not in st.session_state:
+                st.session_state.user_email = None
         
-        if st.button("Process⚙️"):
-            with st.spinner("Processing..."):
-                # get pdf text
-                raw_text = get_pdf_text(pdf_docs)
 
-                # get the text chunks
-                text_chunks = get_text_chunks(raw_text)
+            # If the user is not logged in, show the login/signup page
+        if not st.session_state.is_logged_in:
+                email = loginAndSignUp()
+        else:
 
-                # create vector store
-                vectorstore = get_vectorstore(text_chunks)
+                load_dotenv()
+                st.set_page_config(page_title="PDFInqusitor",
+                                page_icon="images/PDF Analyzer logo.png")
+                st.markdown(page_bg_img, unsafe_allow_html=True)
+                
+                if "conversation" not in st.session_state:
+                    st.session_state.conversation = None
+                if "chat_history" not in st.session_state:
+                    st.session_state.chat_history = None
 
-                # create conversation chain
-                st.session_state.conversation = get_conversation_chain(
-                    vectorstore)
+              
+
+                st.markdown(header_html, unsafe_allow_html=True)
+                st.markdown(question_html, unsafe_allow_html=True)
+                user_question = st.text_input("")
+                if user_question:
+                    handle_userinput(user_question)
+
+                with st.sidebar:
+
+                    user_email = st.session_state.user_email
+                    html_man = f'<span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/PhRgRGg/man.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 60px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;">'
+                    html_woman = f'<span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/K0GxZ1K/woman.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 60px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;">'
+                    html_anonymous = f'<span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/TP65G0P/anonymous.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 80px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;">'
+
+                    if st.session_state.user_gender == "Male ♂️ ":
+                       st.markdown(html_man, unsafe_allow_html=True)
+                       st.markdown(a_underline, unsafe_allow_html=True)
+                    elif st.session_state.user_gender == "Female ♀️ ":
+                       st.markdown(html_woman, unsafe_allow_html=True)
+                       st.markdown(a_underline, unsafe_allow_html=True)
+                    else:
+                       st.markdown(html_anonymous, unsafe_allow_html=True)
+                       st.markdown(a_underline, unsafe_allow_html=True)
+
+                    if st.session_state.is_logged_in:
+                        if st.button("Logout"):
+                            # Clear the session state to log the user out
+                            st.session_state.is_logged_in = False
+                            st.session_state.user_email = None
+                            st.session_state.user_gender = None
+
+                            # Refresh the page
+                            st.experimental_rerun()
+
+                    st.markdown(html_sider, unsafe_allow_html=True)
+                    st.markdown(instruction_html, unsafe_allow_html=True)
+                    pdf_docs = st.file_uploader(
+                        "", accept_multiple_files=True)
+                    
+            
+                    
+                    if st.button("Process⚙️"):
+                        with st.spinner("Processing..."):
+                            # get pdf text
+                            raw_text = get_pdf_text(pdf_docs)
+
+                            # get the text chunks
+                            text_chunks = get_text_chunks(raw_text)
+
+                            # create vector store
+                            vectorstore = get_vectorstore(text_chunks)
+
+                            # create conversation chain
+                            st.session_state.conversation = get_conversation_chain(
+                                vectorstore)
 
 
 if __name__ == '__main__':
