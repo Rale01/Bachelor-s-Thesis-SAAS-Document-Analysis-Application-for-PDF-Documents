@@ -24,12 +24,13 @@ def load_lottiefile(filepath: str):
         return json.load(f)
 
 
-lottie_loading_animation = load_lottiefile("animation1.json")
+lottie_loading_animation = load_lottiefile("animations/animation1.json")
+
 
 
 def initialize_firebase():
     if not firebase_admin._apps:
-        cred = credentials.Certificate('pdfinquistor-c1e1fe10ba47.json')
+        cred = credentials.Certificate('pdfinquistor-firebase-credentials.json')
         firebase_admin.initialize_app(cred)
 
 initialize_firebase()
@@ -85,6 +86,7 @@ def loginAndSignUp():
     st.set_page_config(page_title="PDFInqusitor",
                                 page_icon="images/PDF Analyzer logo.png")
     st.markdown(header_html, unsafe_allow_html=True)
+    
 
     choice = st.selectbox('Login/Signup', ['Login', "Sign Up"])
     if choice == 'Login':
@@ -294,19 +296,22 @@ def main():
                 with st.sidebar:
 
                     user_email = st.session_state.user_email
-                    html_man = f'<span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/PhRgRGg/man.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 60px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;">'
-                    html_woman = f'<span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/K0GxZ1K/woman.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 60px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;">'
-                    html_anonymous = f'<span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/TP65G0P/anonymous.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 80px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;">'
+                    html_man = f'<span style="background-color: rgb(16, 12, 8); border-radius: 20px; border: 1px solid white; padding: 30px;"> <span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/PhRgRGg/man.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 60px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;"> </span>'
+                    html_woman = f'<span style="background-color: rgb(16, 12, 8); border-radius: 20px; border: 1px solid white; padding: 30px;"><span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/K0GxZ1K/woman.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 60px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;"> </span>'
+                    html_anonymous = f'<span style="background-color: rgb(16, 12, 8); border-radius: 20px; border: 1px solid white; padding: 30px;"><span style="font-size: 18px; font-weight: bold; color: white">Hello <span style="text-decoration: none; color: white !important;">{user_email}</span>! </span> <img src="https://i.ibb.co/TP65G0P/anonymous.jpg" alt="Custom Icon" style="vertical-align:middle; max-height: 60px; max-width: 80px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 1px solid white;"> </span>'
 
                     if st.session_state.user_gender == "Male ♂️ ":
                        st.markdown(html_man, unsafe_allow_html=True)
                        st.markdown(a_underline, unsafe_allow_html=True)
+                       
                     elif st.session_state.user_gender == "Female ♀️ ":
                        st.markdown(html_woman, unsafe_allow_html=True)
                        st.markdown(a_underline, unsafe_allow_html=True)
+                       
                     else:
                        st.markdown(html_anonymous, unsafe_allow_html=True)
                        st.markdown(a_underline, unsafe_allow_html=True)
+                       
 
                     if st.session_state.is_logged_in:
                         if st.button("Logout"):
