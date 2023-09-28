@@ -4,6 +4,7 @@ from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
+import os
 
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -16,8 +17,9 @@ from firebase_admin import auth
 import time
 
 import json
-import requests
 import streamlit.runtime.legacy_caching
+from streamlit_lottie import st_lottie
+import pyrebase
 
 def load_lottiefile(filepath: str):
     with open(filepath, "r") as f:
@@ -35,11 +37,40 @@ def initialize_firebase():
 
 initialize_firebase()
 
+load_dotenv()
+apiKey = str(os.getenv("F_API_KEY"))
+authDomain = str(os.getenv("F_AUTH_DOMAIN"))
+projectId = str(os.getenv("F_PROJECT_ID"))
+databaseURL = str(os.getenv("F_DATABASE_URL"))
+storageBucket = str(os.getenv("F_STORAGE_BUCKET"))
+messagingSenderId = str(os.getenv("F_MESSAGING_SENDER_ID"))
+appId = str(os.getenv("F_APP_ID"))
+measurementId = str(os.getenv("F_MEASUREMENT_ID"))
+
+firebase_config = {
+                    "apiKey": apiKey,
+                    "authDomain": authDomain,
+                    "projectId": projectId,
+                    "databaseURL": databaseURL,
+                    "storageBucket": storageBucket,
+                    "messagingSenderId": messagingSenderId,
+                    "appId": appId,
+                    "measurementId": measurementId
+}
+
+
+
+firebase = pyrebase.initialize_app(firebase_config)
+authentication = firebase.auth()
+
 db = firestore.client()
 
-def login(email):
+def login(email, password):
     try:
+        userEmailAndPassword = authentication.sign_in_with_email_and_password(email, password)
         user = auth.get_user_by_email(email)
+        
+
         success_message = st.empty()
         success_message = st.success('Login successful!', icon="✅")
         
@@ -70,13 +101,13 @@ def login(email):
                 unsafe_allow_html=True
             )
             # Display the Lottie animation
-            st.lottie(lottie_loading_animation, width=500, height=500)
+            st_lottie(lottie_loading_animation, width=500, height=500)
         time.sleep(3)  # Adjust the sleep duration as needed
         success_message.empty()
         
 
-    except Exception as e:
-        st.warning(f"Login failed: {e}")
+    except :
+        st.warning(f"Login failed! Wrong email or password!")
 
 
 header_html = '<span style="font-size: 40px; font-weight: bold; color:white;">Login into PDFInqusitor</span> <img src="https://i.ibb.co/4mKV5jQ/PDFInquisitor-logo.png" alt="Custom Icon" style="vertical-align:middle" width="135" height="100">'
@@ -94,7 +125,7 @@ def loginAndSignUp():
         email = st.text_input('Email Address')
         password = st.text_input('Password', type = 'password')
 
-        st.button('Login', on_click=lambda:login(email))
+        st.button('Login', on_click=lambda:login(email, password))
 
     else:
         st.markdown(page_bg_img, unsafe_allow_html=True)
@@ -141,7 +172,7 @@ def get_text_chunks(text):
 
 def get_vectorstore(text_chunks):
     #embeddings = OpenAIEmbeddings()
-    embeddings = HuggingFaceInstructEmbeddings(model_name="intfloat/e5-large-v2")
+    embeddings = HuggingFaceInstructEmbeddings(model_name="intfloat/e5-base-v2")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
@@ -250,13 +281,16 @@ iframe {
 
 a_underline = """
 <style>
-    .css-oyvdv1 a{
-        color: white;
+    .st-emotion-cache-oyvdv1 a{
+     color: white;
     }
     a {
     color: white;
     text-decoration: none;
 
+    }
+    .st-emotion-cache-145e98g{
+    color: #931818
     }
 </style>
 """
@@ -275,7 +309,7 @@ def main():
         if not st.session_state.is_logged_in:
                 email = loginAndSignUp()
         else:
-                load_dotenv()
+                
                 st.set_page_config(page_title="PDFInqusitor",
                                 page_icon="images/PDF Analyzer logo.png")
                 st.markdown(page_bg_img, unsafe_allow_html=True)
@@ -322,7 +356,8 @@ def main():
 
                             # Refresh the page
                             streamlit.runtime.legacy_caching.clear_cache()
-                            st.experimental_rerun()
+                            st.rerun()
+                            
 
                     st.markdown(html_sider, unsafe_allow_html=True)
                     st.markdown(instruction_html, unsafe_allow_html=True)
